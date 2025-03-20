@@ -1,0 +1,4 @@
+name: ItemRarity
+version: '1.0.0'
+main: me.illusion.itemrarity.ItemRarityPlugin
+api-version: '1.21'
