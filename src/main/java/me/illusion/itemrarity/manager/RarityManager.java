@@ -10,10 +10,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class RarityManager {
 
@@ -21,22 +18,27 @@ public class RarityManager {
     private final Set<Rarity> rarities = new HashSet<>();
     private Rarity defaultRarity;
 
+    private final HashSet<Material> ignoredMaterials = new HashSet<>();
 
     public RarityManager(ItemRarityPlugin main) {
         load(main);
     }
 
+    public boolean isIgnored(Material material) {
+        return ignoredMaterials.contains(material);
+    }
+
     public Rarity getRarity(ItemStack item) {
-        for(Rarity rarity : rarities)
-            if(rarity.belongs(item))
+        for (Rarity rarity : rarities)
+            if (rarity.belongs(item))
                 return rarity;
 
         return defaultRarity;
     }
 
     public Rarity getRarity(String rarityName) {
-        for(Rarity rarity : rarities)
-            if(rarity.getName().equalsIgnoreCase(rarityName))
+        for (Rarity rarity : rarities)
+            if (rarity.getName().equalsIgnoreCase(rarityName))
                 return rarity;
 
         return defaultRarity;
@@ -45,8 +47,8 @@ public class RarityManager {
     private void load(ItemRarityPlugin main) {
         FileConfiguration config = new YMLBase(main, "rarities.yml").getConfiguration();
 
-        for(String key : config.getKeys(false)) {
-            if(!config.isConfigurationSection(key))
+        for (String key : config.getKeys(false)) {
+            if (!config.isConfigurationSection(key))
                 continue;
 
             boolean hasCustomItems = config.isConfigurationSection(key + ".custom-items");
@@ -54,23 +56,24 @@ public class RarityManager {
             String lore = config.getString(key + ".lore");
             List<String> materials = config.getStringList(key + ".items");
             Set<ItemStack> customItems = new HashSet<>();
-            if(hasCustomItems) {
+
+            if (hasCustomItems) {
                 ConfigurationSection section = config.getConfigurationSection(key + ".custom-items");
-                for(String itemKey : section.getKeys(false)) {
+                for (String itemKey : section.getKeys(false)) {
                     customItems.add(ItemBuilder.fromSection(section.getConfigurationSection(itemKey)));
                 }
             }
 
             EnumSet<Material> set = EnumSet.noneOf(Material.class);
 
-            for(String name : materials) {
+            for (String name : materials) {
                 try {
                     Material material = Material.matchMaterial(name);
-                    if(material == null)
+                    if (material == null)
                         throw new IllegalArgumentException("Invalid material: " + name);
 
                     set.add(material);
-            } catch (Exception e) {
+                } catch (Exception e) {
                     main.getLogger().warning("Invalid material: " + name);
                 }
             }
@@ -78,6 +81,22 @@ public class RarityManager {
             Rarity rarity = new Rarity(key, lore, set, customItems);
 
             rarities.add(rarity);
+        }
+
+
+        List<String> ignored = config.getStringList("ignored-materials");
+
+        for (String name : ignored) {
+            try {
+                Material material = Material.matchMaterial(name);
+                if (material == null)
+                    throw new IllegalArgumentException("Invalid material: " + name);
+
+                ignoredMaterials.add(material);
+                main.getLogger().info("Ignoring material: " + material.name());
+            } catch (Exception e) {
+                main.getLogger().warning("Invalid material: " + name);
+            }
         }
 
         String defaultRarity = config.getString("default");
